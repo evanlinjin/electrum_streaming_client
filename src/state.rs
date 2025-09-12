@@ -1,18 +1,26 @@
 //! State management for Electrum client.
 
-use crate::{*, request::Request, response::Response};
+use crate::{request::Request, response::Response, *};
 use bitcoin::block::Header;
+use futures::channel::oneshot;
 use notification::Notification;
 use std::collections::HashMap;
-use futures::channel::oneshot;
 
 /// Event emitted by the client.
 #[derive(Debug, Clone)]
 pub enum Event {
     /// Successful response to a request.
-    Response { id: u32, request: Request, response: Response },
+    Response {
+        id: u32,
+        request: Request,
+        response: Response,
+    },
     /// Error response to a request.
-    ResponseError { id: u32, request: Request, error: ResponseError },
+    ResponseError {
+        id: u32,
+        request: Request,
+        error: ResponseError,
+    },
     /// Server-initiated notification.
     Notification(Notification),
 }
@@ -20,17 +28,29 @@ pub enum Event {
 impl Event {
     pub fn try_to_headers(&self) -> Option<Vec<(u32, Header)>> {
         match self {
-            Event::Response { response: Response::Header(resp), .. } => {
-                Some(vec![(0, resp.header)])  // Note: height info lost in simplified version
+            Event::Response {
+                response: Response::Header(resp),
+                ..
+            } => {
+                Some(vec![(0, resp.header)]) // Note: height info lost in simplified version
             }
-            Event::Response { response: Response::HeaderWithProof(resp), .. } => {
-                Some(vec![(0, resp.header)])  // Note: height info lost in simplified version
+            Event::Response {
+                response: Response::HeaderWithProof(resp),
+                ..
+            } => {
+                Some(vec![(0, resp.header)]) // Note: height info lost in simplified version
             }
-            Event::Response { response: Response::Headers(resp), .. } => {
-                Some((0..).zip(resp.headers.clone()).collect())  // Note: height info lost
+            Event::Response {
+                response: Response::Headers(resp),
+                ..
+            } => {
+                Some((0..).zip(resp.headers.clone()).collect()) // Note: height info lost
             }
-            Event::Response { response: Response::HeadersWithCheckpoint(resp), .. } => {
-                Some((0..).zip(resp.headers.clone()).collect())  // Note: height info lost
+            Event::Response {
+                response: Response::HeadersWithCheckpoint(resp),
+                ..
+            } => {
+                Some((0..).zip(resp.headers.clone()).collect()) // Note: height info lost
             }
             Event::Notification(Notification::Header(n)) => Some(vec![(n.height(), *n.header())]),
             _ => None,
@@ -54,15 +74,23 @@ impl State {
         }
     }
 
-    pub fn track_request(&mut self, id: u32, request: Request, response_tx: Option<oneshot::Sender<Result<Response, ResponseError>>>) -> RawRequest {
-        self.pending_requests.insert(id, PendingRequest {
-            request: request.clone(),
-            response_tx,
-        });
+    pub fn track_request(
+        &mut self,
+        id: u32,
+        request: Request,
+        response_tx: Option<oneshot::Sender<Result<Response, ResponseError>>>,
+    ) -> RawRequest {
+        self.pending_requests.insert(
+            id,
+            PendingRequest {
+                request: request.clone(),
+                response_tx,
+            },
+        );
 
         let method = request.method_name().to_string();
         let params = request.params();
-        
+
         RawRequest {
             jsonrpc: JSONRPC_VERSION_2_0.into(),
             id,
@@ -71,9 +99,13 @@ impl State {
         }
     }
 
-    pub fn handle_response(&mut self, id: u32, result: Result<serde_json::Value, serde_json::Value>) -> Option<Event> {
+    pub fn handle_response(
+        &mut self,
+        id: u32,
+        result: Result<serde_json::Value, serde_json::Value>,
+    ) -> Option<Event> {
         let pending = self.pending_requests.remove(&id)?;
-        
+
         match result {
             Ok(value) => {
                 // Use the JSON-RPC method name directly
@@ -85,7 +117,11 @@ impl State {
                             let _ = tx.send(Ok(response.clone()));
                             None
                         } else {
-                            Some(Event::Response { id, request: pending.request, response })
+                            Some(Event::Response {
+                                id,
+                                request: pending.request,
+                                response,
+                            })
                         }
                     }
                     Err(e) => {
@@ -96,7 +132,11 @@ impl State {
                             let _ = tx.send(Err(error));
                             None
                         } else {
-                            Some(Event::ResponseError { id, request: pending.request, error })
+                            Some(Event::ResponseError {
+                                id,
+                                request: pending.request,
+                                error,
+                            })
                         }
                     }
                 }
@@ -107,7 +147,11 @@ impl State {
                     let _ = tx.send(Err(error.clone()));
                     None
                 } else {
-                    Some(Event::ResponseError { id, request: pending.request, error })
+                    Some(Event::ResponseError {
+                        id,
+                        request: pending.request,
+                        error,
+                    })
                 }
             }
         }

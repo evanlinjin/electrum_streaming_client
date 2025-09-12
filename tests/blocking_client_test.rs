@@ -93,22 +93,31 @@ fn blocking_client_with_events() -> anyhow::Result<()> {
     while !got_subscription && start.elapsed() < Duration::from_secs(5) {
         if let Ok(event) = event_rx.recv_timeout(Duration::from_millis(100)) {
             println!("Got event: {:?}", event);
-            if matches!(event, Event::Response { request: request::Request::HeadersSubscribe, .. }) {
+            if matches!(
+                event,
+                Event::Response {
+                    request: request::Request::HeadersSubscribe,
+                    ..
+                }
+            ) {
                 got_subscription = true;
             }
         }
     }
-    assert!(got_subscription, "Should have received subscription response");
+    assert!(
+        got_subscription,
+        "Should have received subscription response"
+    );
 
     // Mine blocks one by one to trigger notifications
     let blocks_to_mine = 3;
     let mut header_count = 0;
-    
+
     for i in 1..=blocks_to_mine {
         println!("Mining block {}...", i);
         env.mine_blocks(1, Some(wallet_addr.clone()))?;
         env.wait_until_electrum_sees_block(Duration::from_secs(5))?;
-        
+
         // Check for header notification
         let start = std::time::Instant::now();
         while start.elapsed() < Duration::from_secs(5) {
@@ -126,7 +135,8 @@ fn blocking_client_with_events() -> anyhow::Result<()> {
     // (may not get all 3 due to timing)
     assert!(
         header_count > 0,
-        "Should have received at least one header notification, got {}", header_count
+        "Should have received at least one header notification, got {}",
+        header_count
     );
 
     // Clean shutdown

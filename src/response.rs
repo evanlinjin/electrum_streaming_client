@@ -1,12 +1,12 @@
 //! Response types for the Electrum protocol.
 
-use std::collections::HashMap;
 use bitcoin::{
     absolute,
     hashes::{Hash, HashEngine},
     Amount, BlockHash, Txid,
 };
 use serde_json::Value;
+use std::collections::HashMap;
 
 use crate::{DoubleSHA, ElectrumScriptStatus};
 
@@ -73,26 +73,49 @@ impl Response {
             }
             "blockchain.block.headers" => {
                 // Try to deserialize as HeadersWithCheckpointResp first (has more fields)
-                if let Ok(resp) = serde_json::from_value::<HeadersWithCheckpointResp>(value.clone()) {
+                if let Ok(resp) = serde_json::from_value::<HeadersWithCheckpointResp>(value.clone())
+                {
                     Ok(Response::HeadersWithCheckpoint(resp))
                 } else {
                     Ok(Response::Headers(serde_json::from_value(value)?))
                 }
             }
             "blockchain.estimatefee" => Ok(Response::EstimateFee(serde_json::from_value(value)?)),
-            "blockchain.headers.subscribe" => Ok(Response::HeadersSubscribe(serde_json::from_value(value)?)),
+            "blockchain.headers.subscribe" => {
+                Ok(Response::HeadersSubscribe(serde_json::from_value(value)?))
+            }
             "blockchain.relayfee" => Ok(Response::RelayFee(serde_json::from_value(value)?)),
-            "blockchain.scripthash.get_balance" => Ok(Response::GetBalance(serde_json::from_value(value)?)),
-            "blockchain.scripthash.get_history" => Ok(Response::GetHistory(serde_json::from_value(value)?)),
-            "blockchain.scripthash.get_mempool" => Ok(Response::GetMempool(serde_json::from_value(value)?)),
-            "blockchain.scripthash.listunspent" => Ok(Response::ListUnspent(serde_json::from_value(value)?)),
-            "blockchain.scripthash.subscribe" => Ok(Response::ScriptHashSubscribe(serde_json::from_value(value)?)),
-            "blockchain.scripthash.unsubscribe" => Ok(Response::ScriptHashUnsubscribe(serde_json::from_value(value)?)),
-            "blockchain.transaction.broadcast" => Ok(Response::BroadcastTx(serde_json::from_value(value)?)),
+            "blockchain.scripthash.get_balance" => {
+                Ok(Response::GetBalance(serde_json::from_value(value)?))
+            }
+            "blockchain.scripthash.get_history" => {
+                Ok(Response::GetHistory(serde_json::from_value(value)?))
+            }
+            "blockchain.scripthash.get_mempool" => {
+                Ok(Response::GetMempool(serde_json::from_value(value)?))
+            }
+            "blockchain.scripthash.listunspent" => {
+                Ok(Response::ListUnspent(serde_json::from_value(value)?))
+            }
+            "blockchain.scripthash.subscribe" => Ok(Response::ScriptHashSubscribe(
+                serde_json::from_value(value)?,
+            )),
+            "blockchain.scripthash.unsubscribe" => Ok(Response::ScriptHashUnsubscribe(
+                serde_json::from_value(value)?,
+            )),
+            "blockchain.transaction.broadcast" => {
+                Ok(Response::BroadcastTx(serde_json::from_value(value)?))
+            }
             "blockchain.transaction.get" => Ok(Response::GetTx(serde_json::from_value(value)?)),
-            "blockchain.transaction.get_merkle" => Ok(Response::GetTxMerkle(serde_json::from_value(value)?)),
-            "blockchain.transaction.id_from_pos" => Ok(Response::GetTxidFromPos(serde_json::from_value(value)?)),
-            "mempool.get_fee_histogram" => Ok(Response::GetFeeHistogram(serde_json::from_value(value)?)),
+            "blockchain.transaction.get_merkle" => {
+                Ok(Response::GetTxMerkle(serde_json::from_value(value)?))
+            }
+            "blockchain.transaction.id_from_pos" => {
+                Ok(Response::GetTxidFromPos(serde_json::from_value(value)?))
+            }
+            "mempool.get_fee_histogram" => {
+                Ok(Response::GetFeeHistogram(serde_json::from_value(value)?))
+            }
             "server.banner" => Ok(Response::Banner(serde_json::from_value(value)?)),
             "server.features" => Ok(Response::Features(serde_json::from_value(value)?)),
             "server.ping" => Ok(Response::Ping),

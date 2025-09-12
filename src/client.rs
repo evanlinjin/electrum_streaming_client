@@ -1,7 +1,7 @@
 //! Async and blocking Electrum client implementations.
 
-use crate::*;
 use crate::notification::Notification;
+use crate::*;
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 
@@ -31,12 +31,15 @@ impl std::error::Error for ClientError {}
 /// Async Electrum client for non-blocking operations.
 #[derive(Debug, Clone)]
 pub struct AsyncClient {
-    tx: mpsc::UnboundedSender<(Request, Option<oneshot::Sender<Result<Response, ResponseError>>>)>,
+    tx: mpsc::UnboundedSender<(
+        Request,
+        Option<oneshot::Sender<Result<Response, ResponseError>>>,
+    )>,
 }
 
 impl AsyncClient {
     /// Create a new async client from reader and writer streams.
-    /// 
+    ///
     /// Returns a tuple of (client, event_receiver, runner_future).
     /// The runner future must be spawned to process I/O.
     pub fn new<R, W>(
@@ -52,7 +55,10 @@ impl AsyncClient {
         W: futures::AsyncWrite + Send + Unpin,
     {
         let (event_tx, event_recv) = mpsc::unbounded::<Event>();
-        let (req_tx, mut req_recv) = mpsc::unbounded::<(Request, Option<oneshot::Sender<Result<Response, ResponseError>>>)>();
+        let (req_tx, mut req_recv) = mpsc::unbounded::<(
+            Request,
+            Option<oneshot::Sender<Result<Response, ResponseError>>>,
+        )>();
 
         let mut incoming_stream =
             crate::io::ReadStreamer::new(futures::io::BufReader::new(reader)).fuse();
@@ -114,7 +120,10 @@ impl AsyncClient {
 
     /// Get a block header by height.
     pub async fn header(&self, height: u32) -> Result<response::HeaderResp, ClientError> {
-        let req = Request::Header { height, cp_height: None };
+        let req = Request::Header {
+            height,
+            cp_height: None,
+        };
         self.send_request(req).await.map(|resp| match resp {
             Response::Header(h) => h,
             _ => unreachable!(),
@@ -122,8 +131,15 @@ impl AsyncClient {
     }
 
     /// Get a block header with Merkle proof.
-    pub async fn header_with_proof(&self, height: u32, cp_height: u32) -> Result<response::HeaderWithProofResp, ClientError> {
-        let req = Request::Header { height, cp_height: Some(cp_height) };
+    pub async fn header_with_proof(
+        &self,
+        height: u32,
+        cp_height: u32,
+    ) -> Result<response::HeaderWithProofResp, ClientError> {
+        let req = Request::Header {
+            height,
+            cp_height: Some(cp_height),
+        };
         self.send_request(req).await.map(|resp| match resp {
             Response::HeaderWithProof(h) => h,
             _ => unreachable!(),
@@ -131,8 +147,16 @@ impl AsyncClient {
     }
 
     /// Get multiple consecutive block headers.
-    pub async fn headers(&self, start_height: u32, count: usize) -> Result<response::HeadersResp, ClientError> {
-        let req = Request::Headers { start_height, count, cp_height: None };
+    pub async fn headers(
+        &self,
+        start_height: u32,
+        count: usize,
+    ) -> Result<response::HeadersResp, ClientError> {
+        let req = Request::Headers {
+            start_height,
+            count,
+            cp_height: None,
+        };
         self.send_request(req).await.map(|resp| match resp {
             Response::Headers(h) => h,
             _ => unreachable!(),
@@ -140,8 +164,17 @@ impl AsyncClient {
     }
 
     /// Get headers with checkpoint proof.
-    pub async fn headers_with_checkpoint(&self, start_height: u32, count: usize, cp_height: u32) -> Result<response::HeadersWithCheckpointResp, ClientError> {
-        let req = Request::Headers { start_height, count, cp_height: Some(cp_height) };
+    pub async fn headers_with_checkpoint(
+        &self,
+        start_height: u32,
+        count: usize,
+        cp_height: u32,
+    ) -> Result<response::HeadersWithCheckpointResp, ClientError> {
+        let req = Request::Headers {
+            start_height,
+            count,
+            cp_height: Some(cp_height),
+        };
         self.send_request(req).await.map(|resp| match resp {
             Response::HeadersWithCheckpoint(h) => h,
             _ => unreachable!(),
@@ -149,7 +182,10 @@ impl AsyncClient {
     }
 
     /// Estimate fee for confirmation within target blocks.
-    pub async fn estimate_fee(&self, number: usize) -> Result<response::EstimateFeeResp, ClientError> {
+    pub async fn estimate_fee(
+        &self,
+        number: usize,
+    ) -> Result<response::EstimateFeeResp, ClientError> {
         let req = Request::EstimateFee { number };
         self.send_request(req).await.map(|resp| match resp {
             Response::EstimateFee(e) => e,
@@ -176,7 +212,10 @@ impl AsyncClient {
     }
 
     /// Get confirmed and unconfirmed balance.
-    pub async fn get_balance(&self, script_hash: ElectrumScriptHash) -> Result<response::GetBalanceResp, ClientError> {
+    pub async fn get_balance(
+        &self,
+        script_hash: ElectrumScriptHash,
+    ) -> Result<response::GetBalanceResp, ClientError> {
         let req = Request::GetBalance { script_hash };
         self.send_request(req).await.map(|resp| match resp {
             Response::GetBalance(b) => b,
@@ -185,7 +224,10 @@ impl AsyncClient {
     }
 
     /// Get transaction history for a script.
-    pub async fn get_history(&self, script_hash: ElectrumScriptHash) -> Result<Vec<response::Tx>, ClientError> {
+    pub async fn get_history(
+        &self,
+        script_hash: ElectrumScriptHash,
+    ) -> Result<Vec<response::Tx>, ClientError> {
         let req = Request::GetHistory { script_hash };
         self.send_request(req).await.map(|resp| match resp {
             Response::GetHistory(h) => h,
@@ -194,7 +236,10 @@ impl AsyncClient {
     }
 
     /// Get mempool transactions for a script.
-    pub async fn get_mempool(&self, script_hash: ElectrumScriptHash) -> Result<Vec<response::MempoolTx>, ClientError> {
+    pub async fn get_mempool(
+        &self,
+        script_hash: ElectrumScriptHash,
+    ) -> Result<Vec<response::MempoolTx>, ClientError> {
         let req = Request::GetMempool { script_hash };
         self.send_request(req).await.map(|resp| match resp {
             Response::GetMempool(m) => m,
@@ -203,7 +248,10 @@ impl AsyncClient {
     }
 
     /// List unspent outputs for a script.
-    pub async fn list_unspent(&self, script_hash: ElectrumScriptHash) -> Result<Vec<response::Utxo>, ClientError> {
+    pub async fn list_unspent(
+        &self,
+        script_hash: ElectrumScriptHash,
+    ) -> Result<Vec<response::Utxo>, ClientError> {
         let req = Request::ListUnspent { script_hash };
         self.send_request(req).await.map(|resp| match resp {
             Response::ListUnspent(u) => u,
@@ -212,7 +260,10 @@ impl AsyncClient {
     }
 
     /// Subscribe to script status changes.
-    pub async fn script_hash_subscribe(&self, script_hash: ElectrumScriptHash) -> Result<Option<ElectrumScriptStatus>, ClientError> {
+    pub async fn script_hash_subscribe(
+        &self,
+        script_hash: ElectrumScriptHash,
+    ) -> Result<Option<ElectrumScriptStatus>, ClientError> {
         let req = Request::ScriptHashSubscribe { script_hash };
         self.send_request(req).await.map(|resp| match resp {
             Response::ScriptHashSubscribe(s) => s,
@@ -221,7 +272,10 @@ impl AsyncClient {
     }
 
     /// Unsubscribe from script status changes.
-    pub async fn script_hash_unsubscribe(&self, script_hash: ElectrumScriptHash) -> Result<bool, ClientError> {
+    pub async fn script_hash_unsubscribe(
+        &self,
+        script_hash: ElectrumScriptHash,
+    ) -> Result<bool, ClientError> {
         let req = Request::ScriptHashUnsubscribe { script_hash };
         self.send_request(req).await.map(|resp| match resp {
             Response::ScriptHashUnsubscribe(s) => s,
@@ -230,7 +284,10 @@ impl AsyncClient {
     }
 
     /// Broadcast a transaction.
-    pub async fn broadcast_tx(&self, tx: bitcoin::Transaction) -> Result<bitcoin::Txid, ClientError> {
+    pub async fn broadcast_tx(
+        &self,
+        tx: bitcoin::Transaction,
+    ) -> Result<bitcoin::Txid, ClientError> {
         let req = Request::BroadcastTx(tx);
         self.send_request(req).await.map(|resp| match resp {
             Response::BroadcastTx(txid) => txid,
@@ -248,7 +305,11 @@ impl AsyncClient {
     }
 
     /// Get Merkle proof for a transaction.
-    pub async fn get_tx_merkle(&self, txid: bitcoin::Txid, height: u32) -> Result<response::TxMerkle, ClientError> {
+    pub async fn get_tx_merkle(
+        &self,
+        txid: bitcoin::Txid,
+        height: u32,
+    ) -> Result<response::TxMerkle, ClientError> {
         let req = Request::GetTxMerkle { txid, height };
         self.send_request(req).await.map(|resp| match resp {
             Response::GetTxMerkle(m) => m,
@@ -257,7 +318,11 @@ impl AsyncClient {
     }
 
     /// Get transaction ID from block position.
-    pub async fn get_txid_from_pos(&self, height: u32, tx_pos: usize) -> Result<response::TxidFromPos, ClientError> {
+    pub async fn get_txid_from_pos(
+        &self,
+        height: u32,
+        tx_pos: usize,
+    ) -> Result<response::TxidFromPos, ClientError> {
         let req = Request::GetTxidFromPos { height, tx_pos };
         self.send_request(req).await.map(|resp| match resp {
             Response::GetTxidFromPos(t) => t,
@@ -302,7 +367,11 @@ impl AsyncClient {
     }
 
     /// Send a custom request.
-    pub async fn custom(&self, method: CowStr, params: Vec<serde_json::Value>) -> Result<serde_json::Value, ClientError> {
+    pub async fn custom(
+        &self,
+        method: CowStr,
+        params: Vec<serde_json::Value>,
+    ) -> Result<serde_json::Value, ClientError> {
         let req = Request::Custom(request::Custom { method, params });
         self.send_request(req).await.map(|resp| match resp {
             Response::Custom(v) => v,
@@ -312,9 +381,10 @@ impl AsyncClient {
 
     async fn send_request(&self, req: Request) -> Result<Response, ClientError> {
         let (tx, rx) = oneshot::channel();
-        self.tx.unbounded_send((req, Some(tx)))
+        self.tx
+            .unbounded_send((req, Some(tx)))
             .map_err(|_| ClientError::SendError)?;
-        
+
         match rx.await {
             Ok(Ok(resp)) => Ok(resp),
             Ok(Err(e)) => Err(ClientError::ServerError(e)),
@@ -324,49 +394,60 @@ impl AsyncClient {
 
     /// Send a request without waiting for response (for subscriptions).
     pub fn send_event_request(&self, req: Request) -> Result<(), ClientError> {
-        self.tx.unbounded_send((req, None))
+        self.tx
+            .unbounded_send((req, None))
             .map_err(|_| ClientError::SendError)
     }
 }
 
 // Blocking client with proper multi-threading implementation
-use std::sync::{Arc, Mutex};
 use std::io::{BufRead, BufReader};
+use std::sync::{Arc, Mutex};
 
 /// Blocking Electrum client for synchronous operations.
 #[derive(Clone)]
 pub struct BlockingClient {
-    tx: std::sync::mpsc::Sender<(Request, Option<std::sync::mpsc::SyncSender<Result<Response, ResponseError>>>)>,
+    tx: std::sync::mpsc::Sender<(
+        Request,
+        Option<std::sync::mpsc::SyncSender<Result<Response, ResponseError>>>,
+    )>,
 }
 
 impl BlockingClient {
     /// Create a new blocking client from reader and writer streams.
-    /// 
+    ///
     /// Returns a tuple of (client, event_receiver, join_handle).
     pub fn new<R, W>(
         reader: R,
         mut writer: W,
-    ) -> (Self, std::sync::mpsc::Receiver<Event>, std::thread::JoinHandle<std::io::Result<()>>)
+    ) -> (
+        Self,
+        std::sync::mpsc::Receiver<Event>,
+        std::thread::JoinHandle<std::io::Result<()>>,
+    )
     where
         R: std::io::Read + Send + 'static,
         W: std::io::Write + Send + 'static,
     {
         let (event_tx, event_rx) = std::sync::mpsc::channel();
-        let (req_tx, req_rx) = std::sync::mpsc::channel::<(Request, Option<std::sync::mpsc::SyncSender<Result<Response, ResponseError>>>)>();
-        
+        let (req_tx, req_rx) = std::sync::mpsc::channel::<(
+            Request,
+            Option<std::sync::mpsc::SyncSender<Result<Response, ResponseError>>>,
+        )>();
+
         // Shared state protected by mutex
         let state = Arc::new(Mutex::new(BlockingState::new()));
         let next_id = Arc::new(Mutex::new(0_u32));
-        
+
         // Clone for the reader thread
         let state_clone = state.clone();
         let event_tx_clone = event_tx.clone();
-        
+
         // Reader thread - processes incoming messages
         let reader_handle = std::thread::spawn(move || {
             let mut reader = BufReader::new(reader);
             let mut line = String::new();
-            
+
             loop {
                 line.clear();
                 match reader.read_line(&mut line) {
@@ -377,7 +458,9 @@ impl BlockingClient {
                             match msg {
                                 RawNotificationOrResponse::Response(raw_resp) => {
                                     let mut state = state_clone.lock().unwrap();
-                                    if let Some(event) = state.handle_response(raw_resp.id, raw_resp.result) {
+                                    if let Some(event) =
+                                        state.handle_response(raw_resp.id, raw_resp.result)
+                                    {
                                         let _ = event_tx_clone.send(event);
                                     }
                                 }
@@ -396,7 +479,7 @@ impl BlockingClient {
                 }
             }
         });
-        
+
         // Writer thread - sends requests
         let handle = std::thread::spawn(move || {
             loop {
@@ -404,12 +487,12 @@ impl BlockingClient {
                     Ok((req, resp_tx)) => {
                         let mut state = state.lock().unwrap();
                         let mut id = next_id.lock().unwrap();
-                        
+
                         let raw_req = state.track_request(*id, req, resp_tx);
                         *id = id.wrapping_add(1);
                         drop(state);
                         drop(id);
-                        
+
                         // Serialize and write the request
                         if let Ok(json) = serde_json::to_string(&raw_req) {
                             if let Err(e) = writeln!(&mut writer, "{}", json) {
@@ -425,42 +508,69 @@ impl BlockingClient {
                     Err(_) => break, // Channel closed
                 }
             }
-            
+
             // Wait for reader thread to finish
             let _ = reader_handle.join();
             Ok(())
         });
-        
+
         (BlockingClient { tx: req_tx }, event_rx, handle)
     }
 
     // Direct methods for each request type (blocking versions)
     pub fn header(&self, height: u32) -> Result<response::HeaderResp, ClientError> {
-        let req = Request::Header { height, cp_height: None };
+        let req = Request::Header {
+            height,
+            cp_height: None,
+        };
         self.send_request(req).map(|resp| match resp {
             Response::Header(h) => h,
             _ => unreachable!(),
         })
     }
 
-    pub fn header_with_proof(&self, height: u32, cp_height: u32) -> Result<response::HeaderWithProofResp, ClientError> {
-        let req = Request::Header { height, cp_height: Some(cp_height) };
+    pub fn header_with_proof(
+        &self,
+        height: u32,
+        cp_height: u32,
+    ) -> Result<response::HeaderWithProofResp, ClientError> {
+        let req = Request::Header {
+            height,
+            cp_height: Some(cp_height),
+        };
         self.send_request(req).map(|resp| match resp {
             Response::HeaderWithProof(h) => h,
             _ => unreachable!(),
         })
     }
 
-    pub fn headers(&self, start_height: u32, count: usize) -> Result<response::HeadersResp, ClientError> {
-        let req = Request::Headers { start_height, count, cp_height: None };
+    pub fn headers(
+        &self,
+        start_height: u32,
+        count: usize,
+    ) -> Result<response::HeadersResp, ClientError> {
+        let req = Request::Headers {
+            start_height,
+            count,
+            cp_height: None,
+        };
         self.send_request(req).map(|resp| match resp {
             Response::Headers(h) => h,
             _ => unreachable!(),
         })
     }
 
-    pub fn headers_with_checkpoint(&self, start_height: u32, count: usize, cp_height: u32) -> Result<response::HeadersWithCheckpointResp, ClientError> {
-        let req = Request::Headers { start_height, count, cp_height: Some(cp_height) };
+    pub fn headers_with_checkpoint(
+        &self,
+        start_height: u32,
+        count: usize,
+        cp_height: u32,
+    ) -> Result<response::HeadersWithCheckpointResp, ClientError> {
+        let req = Request::Headers {
+            start_height,
+            count,
+            cp_height: Some(cp_height),
+        };
         self.send_request(req).map(|resp| match resp {
             Response::HeadersWithCheckpoint(h) => h,
             _ => unreachable!(),
@@ -483,7 +593,10 @@ impl BlockingClient {
         })
     }
 
-    pub fn get_balance(&self, script_hash: ElectrumScriptHash) -> Result<response::GetBalanceResp, ClientError> {
+    pub fn get_balance(
+        &self,
+        script_hash: ElectrumScriptHash,
+    ) -> Result<response::GetBalanceResp, ClientError> {
         let req = Request::GetBalance { script_hash };
         self.send_request(req).map(|resp| match resp {
             Response::GetBalance(b) => b,
@@ -491,7 +604,10 @@ impl BlockingClient {
         })
     }
 
-    pub fn get_history(&self, script_hash: ElectrumScriptHash) -> Result<Vec<response::Tx>, ClientError> {
+    pub fn get_history(
+        &self,
+        script_hash: ElectrumScriptHash,
+    ) -> Result<Vec<response::Tx>, ClientError> {
         let req = Request::GetHistory { script_hash };
         self.send_request(req).map(|resp| match resp {
             Response::GetHistory(h) => h,
@@ -499,7 +615,10 @@ impl BlockingClient {
         })
     }
 
-    pub fn list_unspent(&self, script_hash: ElectrumScriptHash) -> Result<Vec<response::Utxo>, ClientError> {
+    pub fn list_unspent(
+        &self,
+        script_hash: ElectrumScriptHash,
+    ) -> Result<Vec<response::Utxo>, ClientError> {
         let req = Request::ListUnspent { script_hash };
         self.send_request(req).map(|resp| match resp {
             Response::ListUnspent(u) => u,
@@ -539,7 +658,11 @@ impl BlockingClient {
         })
     }
 
-    pub fn custom(&self, method: CowStr, params: Vec<serde_json::Value>) -> Result<serde_json::Value, ClientError> {
+    pub fn custom(
+        &self,
+        method: CowStr,
+        params: Vec<serde_json::Value>,
+    ) -> Result<serde_json::Value, ClientError> {
         let req = Request::Custom(request::Custom { method, params });
         self.send_request(req).map(|resp| match resp {
             Response::Custom(v) => v,
@@ -549,9 +672,10 @@ impl BlockingClient {
 
     fn send_request(&self, req: Request) -> Result<Response, ClientError> {
         let (tx, rx) = std::sync::mpsc::sync_channel(1);
-        self.tx.send((req, Some(tx)))
+        self.tx
+            .send((req, Some(tx)))
             .map_err(|_| ClientError::SendError)?;
-        
+
         match rx.recv() {
             Ok(Ok(resp)) => Ok(resp),
             Ok(Err(e)) => Err(ClientError::ServerError(e)),
@@ -560,7 +684,8 @@ impl BlockingClient {
     }
 
     pub fn send_event_request(&self, req: Request) -> Result<(), ClientError> {
-        self.tx.send((req, None))
+        self.tx
+            .send((req, None))
             .map_err(|_| ClientError::SendError)
     }
 }
@@ -582,14 +707,22 @@ impl BlockingState {
         }
     }
 
-    fn track_request(&mut self, id: u32, request: Request, response_tx: Option<std::sync::mpsc::SyncSender<Result<Response, ResponseError>>>) -> RawRequest {
+    fn track_request(
+        &mut self,
+        id: u32,
+        request: Request,
+        response_tx: Option<std::sync::mpsc::SyncSender<Result<Response, ResponseError>>>,
+    ) -> RawRequest {
         let method = request.method_name().to_string();
         let params = request.params();
-        
-        self.pending_requests.insert(id, BlockingPendingRequest {
-            request: request.clone(),
-            response_tx,
-        });
+
+        self.pending_requests.insert(
+            id,
+            BlockingPendingRequest {
+                request: request.clone(),
+                response_tx,
+            },
+        );
 
         RawRequest {
             jsonrpc: JSONRPC_VERSION_2_0.into(),
@@ -599,9 +732,13 @@ impl BlockingState {
         }
     }
 
-    fn handle_response(&mut self, id: u32, result: Result<serde_json::Value, serde_json::Value>) -> Option<Event> {
+    fn handle_response(
+        &mut self,
+        id: u32,
+        result: Result<serde_json::Value, serde_json::Value>,
+    ) -> Option<Event> {
         let pending = self.pending_requests.remove(&id)?;
-        
+
         match result {
             Ok(value) => {
                 // Use the JSON-RPC method name directly
@@ -613,7 +750,11 @@ impl BlockingState {
                             let _ = tx.send(Ok(response.clone()));
                             None
                         } else {
-                            Some(Event::Response { id, request: pending.request, response })
+                            Some(Event::Response {
+                                id,
+                                request: pending.request,
+                                response,
+                            })
                         }
                     }
                     Err(e) => {
@@ -624,7 +765,11 @@ impl BlockingState {
                             let _ = tx.send(Err(error));
                             None
                         } else {
-                            Some(Event::ResponseError { id, request: pending.request, error })
+                            Some(Event::ResponseError {
+                                id,
+                                request: pending.request,
+                                error,
+                            })
                         }
                     }
                 }
@@ -635,7 +780,11 @@ impl BlockingState {
                     let _ = tx.send(Err(error.clone()));
                     None
                 } else {
-                    Some(Event::ResponseError { id, request: pending.request, error })
+                    Some(Event::ResponseError {
+                        id,
+                        request: pending.request,
+                        error,
+                    })
                 }
             }
         }

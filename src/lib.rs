@@ -33,10 +33,10 @@ pub type DoubleSHA = bitcoin::hashes::sha256d::Hash;
 /// Internal type aliases for asynchronous client components.
 mod async_aliases {
     use super::*;
-    
+
     /// The sending half of the internal event stream, used to emit [`Event`]s from the client worker loop.
     pub type AsyncEventSender = futures::channel::mpsc::UnboundedSender<Event>;
-    
+
     /// The receiving half of the internal event stream, returned to users of [`AsyncClient`].
     ///
     /// This yields all incoming [`Event`]s from the Electrum server, including notifications and responses.
@@ -47,10 +47,10 @@ pub use async_aliases::*;
 /// Internal type aliases for blocking client components.
 mod blocking_aliases {
     use super::*;
-    
+
     /// Channel sender used by the read thread to emit [`Event`]s.
     pub type BlockingEventSender = std::sync::mpsc::Sender<Event>;
-    
+
     /// Channel receiver used to receive [`Event`]s from the Electrum server.
     pub type BlockingEventReceiver = std::sync::mpsc::Receiver<Event>;
 }

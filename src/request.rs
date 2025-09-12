@@ -1,5 +1,5 @@
 //! Request types for the Electrum protocol.
-//! 
+//!
 //! This module provides strongly-typed request structures for all Electrum protocol methods.
 //! Each request type corresponds to a specific Electrum RPC method as documented in the
 //! [Electrum Protocol](https://electrum-protocol.readthedocs.io/en/latest/).
@@ -10,7 +10,7 @@ use serde_json::Value;
 use crate::{CowStr, ElectrumScriptHash};
 
 /// Represents all possible Electrum protocol requests.
-/// 
+///
 /// This enum provides a unified interface for all request types supported by the Electrum protocol.
 /// Each variant contains the specific request parameters needed for that method.
 #[derive(Debug, Clone)]
@@ -18,80 +18,84 @@ pub enum Request {
     /// Request a block header by height, optionally with Merkle proof.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-block-header>
     Header { height: u32, cp_height: Option<u32> },
-    
+
     /// Request multiple consecutive block headers, optionally with checkpoint proof.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-block-headers>
-    Headers { start_height: u32, count: usize, cp_height: Option<u32> },
-    
+    Headers {
+        start_height: u32,
+        count: usize,
+        cp_height: Option<u32>,
+    },
+
     /// Estimate the fee rate for transaction confirmation.
     /// Target number of blocks for confirmation.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-estimatefee>
     EstimateFee { number: usize },
-    
+
     /// Subscribe to new block headers.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-headers-subscribe>
     HeadersSubscribe,
-    
+
     /// Get the minimum relay fee.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-relayfee>
     RelayFee,
-    
+
     /// Get the balance of a script hash.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-scripthash-get-balance>
     GetBalance { script_hash: ElectrumScriptHash },
-    
+
     /// Get the transaction history of a script hash.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-scripthash-get-history>
     GetHistory { script_hash: ElectrumScriptHash },
-    
+
     /// Get mempool transactions for a script hash.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-scripthash-get-mempool>
     GetMempool { script_hash: ElectrumScriptHash },
-    
+
     /// List unspent outputs for a script hash.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-scripthash-listunspent>
     ListUnspent { script_hash: ElectrumScriptHash },
-    
+
     /// Subscribe to script hash status changes.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-scripthash-subscribe>
     ScriptHashSubscribe { script_hash: ElectrumScriptHash },
-    
+
     /// Unsubscribe from script hash status changes.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-scripthash-unsubscribe>
     ScriptHashUnsubscribe { script_hash: ElectrumScriptHash },
-    
+
     /// Broadcast a transaction to the network.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-transaction-broadcast>
     BroadcastTx(bitcoin::Transaction),
-    
+
     /// Get a transaction by its ID.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-transaction-get>
     GetTx { txid: Txid },
-    
+
     /// Get the Merkle proof for a transaction.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-transaction-get-merkle>
     GetTxMerkle { txid: Txid, height: u32 },
-    
+
     /// Get a transaction ID from its position in a block.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-transaction-id-from-pos>
     GetTxidFromPos { height: u32, tx_pos: usize },
-    
+
     /// Get the mempool fee histogram.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#mempool-get-fee-histogram>
     GetFeeHistogram,
-    
+
     /// Get the server banner.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#server-banner>
     Banner,
-    
+
     /// Get server features and capabilities.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#server-features>
     Features,
-    
+
     /// Ping the server to test the connection.
     /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#server-ping>
     Ping,
-    
+
     /// Custom request for methods not explicitly supported.
     Custom(Custom),
 }
@@ -133,7 +137,11 @@ impl Request {
                     vec![(*height).into()]
                 }
             }
-            Request::Headers { start_height, count, cp_height } => {
+            Request::Headers {
+                start_height,
+                count,
+                cp_height,
+            } => {
                 if let Some(cp) = cp_height {
                     vec![(*start_height).into(), (*count).into(), (*cp).into()]
                 } else {
@@ -155,7 +163,9 @@ impl Request {
                 vec![tx_bytes.to_lower_hex_string().into()]
             }
             Request::GetTx { txid } => vec![txid.to_string().into()],
-            Request::GetTxMerkle { txid, height } => vec![txid.to_string().into(), (*height).into()],
+            Request::GetTxMerkle { txid, height } => {
+                vec![txid.to_string().into(), (*height).into()]
+            }
             Request::GetTxidFromPos { height, tx_pos } => vec![(*height).into(), (*tx_pos).into()],
             Request::GetFeeHistogram => vec![],
             Request::Banner => vec![],
@@ -202,9 +212,8 @@ impl Request {
     }
 }
 
-
 /// A custom request for methods not explicitly supported.
-/// 
+///
 /// Allows sending arbitrary method calls to the server.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Custom {

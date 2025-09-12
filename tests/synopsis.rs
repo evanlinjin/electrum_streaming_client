@@ -3,9 +3,7 @@ use std::time::Duration;
 use async_std::{net::TcpStream, stream::StreamExt};
 use bdk_testenv::{anyhow, bitcoincore_rpc::RpcApi, TestEnv};
 use bitcoin::Amount;
-use electrum_streaming_client::{
-    notification::Notification, request, AsyncClient, Event,
-};
+use electrum_streaming_client::{notification::Notification, request, AsyncClient, Event};
 use futures::{
     executor::{block_on, ThreadPool},
     task::SpawnExt,
@@ -31,14 +29,14 @@ fn synopsis() -> anyhow::Result<()> {
         let run_handle = pool.spawn_with_handle(run_fut)?;
 
         client.send_event_request(request::Request::HeadersSubscribe)?;
-        client.send_event_request(
-            request::Request::subscribe_from_script(wallet_addr.script_pubkey()),
-        )?;
-        
+        client.send_event_request(request::Request::subscribe_from_script(
+            wallet_addr.script_pubkey(),
+        ))?;
+
         // Wait for responses
         let event1 = event_rx.next().await;
         let event2 = event_rx.next().await;
-        
+
         assert!(matches!(event1, Some(Event::Response { .. })));
         assert!(matches!(event2, Some(Event::Response { .. })));
 
@@ -54,23 +52,20 @@ fn synopsis() -> anyhow::Result<()> {
             println!("RECEIVED: {:?}", blockhash);
         }
 
-        env.rpc_client()
-            .send_to_address(
-                &wallet_addr,
-                Amount::from_sat(1000),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )?;
+        env.rpc_client().send_to_address(
+            &wallet_addr,
+            Amount::from_sat(1000),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )?;
 
         assert!(matches!(
             event_rx.next().await,
-            Some(Event::Notification(
-                Notification::ScriptHash(_)
-            ))
+            Some(Event::Notification(Notification::ScriptHash(_)))
         ));
 
         const TO_MINE2: usize = 100;
@@ -119,7 +114,7 @@ fn blocking_client() -> anyhow::Result<()> {
     // This test would need further implementation in the client
 
     handle.join().expect("client thread should not panic")?;
-    
+
     Ok(())
 }
 
