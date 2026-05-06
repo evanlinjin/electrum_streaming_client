@@ -158,3 +158,34 @@ where
     }
     Ok(Version)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Deserialize)]
+    struct Wrapper {
+        #[serde(deserialize_with = "headers_from_hex_or_list")]
+        headers: Vec<bitcoin::block::Header>,
+    }
+
+    #[test]
+    fn headers_from_hex_or_list_accepts_both_formats() {
+        // Any 80 bytes parse as a Header structurally; the test just checks both paths agree.
+        let h0 = "00".repeat(80);
+        let h1 = "ff".repeat(80);
+
+        let concatenated: Wrapper =
+            serde_json::from_value(serde_json::json!({ "headers": format!("{h0}{h1}") })).unwrap();
+        let array: Wrapper =
+            serde_json::from_value(serde_json::json!({ "headers": [h0, h1] })).unwrap();
+
+        assert_eq!(concatenated.headers.len(), 2);
+        assert_eq!(concatenated.headers, array.headers);
+    }
+
+    #[test]
+    fn headers_from_hex_or_list_rejects_other_types() {
+        assert!(serde_json::from_value::<Wrapper>(serde_json::json!({ "headers": 42 })).is_err());
+    }
+}
