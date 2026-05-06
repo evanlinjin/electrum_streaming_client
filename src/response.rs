@@ -14,6 +14,20 @@ use bitcoin::{
 
 use crate::DoubleSHA;
 
+/// Response to the `"server.version"` method.
+///
+/// Returns the server's software version and the negotiated protocol version.
+///
+/// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#server-version>
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ServerVersionResp {
+    /// The server's software version string.
+    pub server_software: String,
+
+    /// The negotiated protocol version string.
+    pub protocol_version: String,
+}
+
 /// Response to the `"blockchain.block.header"` method (without checkpoint).
 #[derive(Debug, Clone, serde::Deserialize, PartialEq, Eq)]
 #[serde(transparent)]
@@ -38,6 +52,9 @@ pub struct HeaderWithProofResp {
 }
 
 /// Response to the `"blockchain.block.headers"` method (without checkpoint).
+///
+/// Supports both the pre-1.6 format (concatenated hex in `"hex"` field) and the v1.6 format
+/// (array of hex strings in `"headers"` field).
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct HeadersResp {
     /// The number of headers returned.
@@ -45,16 +62,20 @@ pub struct HeadersResp {
 
     /// The deserialized headers returned by the server.
     #[serde(
-        rename = "hex",
-        deserialize_with = "crate::custom_serde::from_cancat_consensus_hex"
+        alias = "hex",
+        alias = "headers",
+        deserialize_with = "crate::custom_serde::headers_from_hex_or_list"
     )]
     pub headers: Vec<bitcoin::block::Header>,
 
-    /// The server’s maximum allowed headers per request.
+    /// The server's maximum allowed headers per request.
     pub max: usize,
 }
 
 /// Response to the `"blockchain.block.headers"` method with a `cp_height` parameter.
+///
+/// Supports both the pre-1.6 format (concatenated hex in `"hex"` field) and the v1.6 format
+/// (array of hex strings in `"headers"` field).
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct HeadersWithCheckpointResp {
     /// The number of headers returned.
@@ -62,12 +83,13 @@ pub struct HeadersWithCheckpointResp {
 
     /// The deserialized headers returned by the server.
     #[serde(
-        rename = "hex",
-        deserialize_with = "crate::custom_serde::from_cancat_consensus_hex"
+        alias = "hex",
+        alias = "headers",
+        deserialize_with = "crate::custom_serde::headers_from_hex_or_list"
     )]
     pub headers: Vec<bitcoin::block::Header>,
 
-    /// The server’s maximum allowed headers per request.
+    /// The server's maximum allowed headers per request.
     pub max: usize,
 
     /// The Merkle root of all headers up to the checkpoint height.
@@ -279,6 +301,35 @@ pub struct FeePair {
     /// The total weight (in vbytes) of transactions at or above this fee rate.
     #[serde(deserialize_with = "crate::custom_serde::weight_from_vb")]
     pub weight: bitcoin::Weight,
+}
+
+/// Response to the `"blockchain.transaction.broadcast_package"` method (non-verbose mode).
+///
+/// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-transaction-broadcast-package>
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct BroadcastPackageResp {
+    /// Whether the package was accepted by the server.
+    pub success: bool,
+}
+
+/// Response to the `"mempool.get_info"` method.
+///
+/// Provides fee-related information about the server's mempool. All fee rates are in BTC/kvB.
+///
+/// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#mempool-get-info>
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct MempoolInfoResp {
+    /// The minimum fee rate (BTC/kvB) for a transaction to be accepted into the mempool.
+    #[serde(deserialize_with = "crate::custom_serde::feerate_opt_from_btc_per_kb")]
+    pub mempoolminfee: Option<bitcoin::FeeRate>,
+
+    /// The minimum relay fee rate (BTC/kvB).
+    #[serde(deserialize_with = "crate::custom_serde::feerate_opt_from_btc_per_kb")]
+    pub minrelaytxfee: Option<bitcoin::FeeRate>,
+
+    /// The incremental relay fee rate (BTC/kvB).
+    #[serde(deserialize_with = "crate::custom_serde::feerate_opt_from_btc_per_kb")]
+    pub incrementalrelayfee: Option<bitcoin::FeeRate>,
 }
 
 /// Response to the `"server.features"` method.

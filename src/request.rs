@@ -235,17 +235,50 @@ impl Request for HeadersWithCheckpoint {
 /// fee rate (in BTC per kilobyte) required to be included within the specified number of blocks.
 ///
 /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-estimatefee>
+/// The fee estimation mode passed to the server's `estimatesmartfee` RPC.
+///
+/// Added in Electrum protocol v1.6.
+///
+/// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-estimatefee>
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EstimateFeeMode {
+    /// Conservative fee estimation (less likely to underestimate).
+    Conservative,
+    /// Economical fee estimation (may underestimate for faster inclusion).
+    Economical,
+}
+
+impl EstimateFeeMode {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Conservative => "CONSERVATIVE",
+            Self::Economical => "ECONOMICAL",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EstimateFee {
     /// The number of blocks to target for confirmation.
     pub number: usize,
+
+    /// An optional estimation mode passed to the server's `estimatesmartfee` RPC.
+    ///
+    /// If `None`, the server uses its default mode.
+    ///
+    /// Added in Electrum protocol v1.6.
+    pub mode: Option<EstimateFeeMode>,
 }
 
 impl Request for EstimateFee {
     type Response = response::EstimateFeeResp;
 
     fn to_method_and_params(&self) -> MethodAndParams {
-        ("blockchain.estimatefee".into(), vec![self.number.into()])
+        let mut params: Vec<serde_json::Value> = vec![self.number.into()];
+        if let Some(mode) = &self.mode {
+            params.push(mode.as_str().into());
+        }
+        ("blockchain.estimatefee".into(), params)
     }
 }
 
@@ -270,6 +303,9 @@ impl Request for HeadersSubscribe {
 ///
 /// This corresponds to the `"server.relayfee"` Electrum RPC method. It returns the minimum
 /// fee rate (in BTC per kilobyte) that the server will accept for relaying transactions.
+///
+/// Removed in Electrum protocol v1.6 — use [`GetMempoolInfo`] (`mempool.get_info`) when
+/// targeting v1.6+ servers.
 ///
 /// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#server-relayfee>
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -589,6 +625,37 @@ impl Request for GetTxidFromPos {
     }
 }
 
+/// A request to broadcast a package of transactions to the network.
+///
+/// This corresponds to the `"blockchain.transaction.broadcast_package"` Electrum RPC method,
+/// which submits a package of related transactions (e.g., for CPFP or package relay).
+///
+/// Added in Electrum protocol v1.6.
+///
+/// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#blockchain-transaction-broadcast-package>
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BroadcastPackage(pub Vec<bitcoin::Transaction>);
+
+impl Request for BroadcastPackage {
+    type Response = response::BroadcastPackageResp;
+
+    fn to_method_and_params(&self) -> MethodAndParams {
+        let txs: Vec<serde_json::Value> = self
+            .0
+            .iter()
+            .map(|tx| {
+                let mut tx_bytes = Vec::<u8>::new();
+                tx.consensus_encode(&mut tx_bytes).expect("must encode");
+                tx_bytes.to_lower_hex_string().into()
+            })
+            .collect();
+        (
+            "blockchain.transaction.broadcast_package".into(),
+            vec![txs.into()],
+        )
+    }
+}
+
 /// A request for the current mempool fee histogram.
 ///
 /// This corresponds to the `"mempool.get_fee_histogram"` Electrum RPC method. It returns a compact
@@ -604,6 +671,61 @@ impl Request for GetFeeHistogram {
 
     fn to_method_and_params(&self) -> MethodAndParams {
         ("mempool.get_fee_histogram".into(), vec![])
+    }
+}
+
+/// A request to negotiate the protocol version with the Electrum server.
+///
+/// This corresponds to the `"server.version"` Electrum RPC method. It identifies the client and
+/// negotiates a compatible protocol version with the server. According to the Electrum protocol
+/// specification, this should be the first message sent after connecting.
+///
+/// The server will select the highest protocol version that both client and server support.
+///
+/// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#server-version>
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ServerVersion {
+    /// A string identifying the client software (e.g., `"electrum_streaming_client/0.5"`).
+    pub client_name: CowStr,
+
+    /// The protocol version or version range the client supports.
+    ///
+    /// Can be a single version string (e.g., `"1.6"`) or an array-style string for a range.
+    pub protocol_version: CowStr,
+}
+
+impl Request for ServerVersion {
+    type Response = response::ServerVersionResp;
+
+    fn to_method_and_params(&self) -> MethodAndParams {
+        (
+            "server.version".into(),
+            vec![
+                self.client_name.as_ref().into(),
+                self.protocol_version.as_ref().into(),
+            ],
+        )
+    }
+}
+
+/// A request for general mempool information from the Electrum server.
+///
+/// This corresponds to the `"mempool.get_info"` Electrum RPC method. It returns fee-related
+/// parameters including `mempoolminfee`, `minrelaytxfee`, and `incrementalrelayfee`.
+///
+/// This replaces the `blockchain.relayfee` method, which was removed in v1.6.
+///
+/// Added in Electrum protocol v1.6.
+///
+/// See: <https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#mempool-get-info>
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GetMempoolInfo;
+
+impl Request for GetMempoolInfo {
+    type Response = response::MempoolInfoResp;
+
+    fn to_method_and_params(&self) -> MethodAndParams {
+        ("mempool.get_info".into(), vec![])
     }
 }
 

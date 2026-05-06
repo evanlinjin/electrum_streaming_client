@@ -19,23 +19,44 @@ where
     deserialize_hex(&hex_str).map_err(serde::de::Error::custom)
 }
 
-pub fn from_cancat_consensus_hex<'de, T, D>(deserializer: D) -> Result<Vec<T>, D::Error>
+/// Deserializes headers from either:
+/// - A single concatenated hex string (pre-1.6: `"hex"` field)
+/// - An array of individual hex strings (v1.6+: `"headers"` field)
+pub fn headers_from_hex_or_list<'de, T, D>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     T: bitcoin::consensus::encode::Decodable,
     D: Deserializer<'de>,
 {
-    let hex_str = String::deserialize(deserializer)?;
-    let data = Vec::<u8>::from_hex(&hex_str).map_err(serde::de::Error::custom)?;
-
-    let mut items = Vec::<T>::new();
-    let mut read_start = 0_usize;
-    while read_start < data.len() {
-        let (item, read_count) =
-            deserialize_partial::<T>(&data[read_start..]).map_err(serde::de::Error::custom)?;
-        read_start += read_count;
-        items.push(item);
+    let value = Value::deserialize(deserializer)?;
+    match value {
+        Value::String(hex_str) => {
+            // Pre-1.6: single concatenated hex string
+            let data = Vec::<u8>::from_hex(&hex_str).map_err(serde::de::Error::custom)?;
+            let mut items = Vec::<T>::new();
+            let mut read_start = 0_usize;
+            while read_start < data.len() {
+                let (item, read_count) = deserialize_partial::<T>(&data[read_start..])
+                    .map_err(serde::de::Error::custom)?;
+                read_start += read_count;
+                items.push(item);
+            }
+            Ok(items)
+        }
+        Value::Array(arr) => {
+            // v1.6: array of hex strings
+            arr.into_iter()
+                .map(|v| {
+                    let hex_str = v.as_str().ok_or_else(|| {
+                        serde::de::Error::custom("expected hex string in headers array")
+                    })?;
+                    deserialize_hex(hex_str).map_err(serde::de::Error::custom)
+                })
+                .collect()
+        }
+        _ => Err(serde::de::Error::custom(
+            "expected a hex string or array of hex strings for headers",
+        )),
     }
-    Ok(items)
 }
 
 pub fn feerate_opt_from_btc_per_kb<'de, D>(
